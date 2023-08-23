@@ -1,17 +1,26 @@
-from .models import Expenses, AppUser, ExpensesCategory
-from .serializers import *
 from rest_framework.views import APIView
 from rest_framework import permissions
 from rest_framework.response import Response
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Sum, Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
+
+from .models import Store, Expenses, AppUser, ExpensesCategory
+from .serializers import (
+    UserSerializer,
+    CategorySerializer,
+    StoreSerializer,
+    ExpensesSerializer,
+    CategorySumSerializer,
+    StoreSumSerializer,
+    ExpensesSumSerializer,
+)
 
 
 class TableData(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """
         Return response with expenses data filtered by user pk and paginated
@@ -48,7 +57,7 @@ class TableData(APIView):
         """
 
         expenses_serializer_to_update = ExpensesSerializer(data=request.data)
-        
+
         if expenses_serializer_to_update.is_valid():
             data = expenses_serializer_to_update.validated_data
 
@@ -79,7 +88,7 @@ class TableData(APIView):
         """
         Change user budget
         """
-        
+
         user_serializer = UserSerializer(data=request.data)
 
         if user_serializer.is_valid():
@@ -96,7 +105,7 @@ class TableData(APIView):
         """
         Input new expenses item in the table
         """
-        
+
         expenses_serializer = ExpensesSerializer(
             data=request.data, context={"pk": request.user.pk}
         )
@@ -133,7 +142,7 @@ class UserData(APIView):
     """
     Gets information about user
     """
-    
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -150,22 +159,30 @@ class StatisticData(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        q = Q()
+        q &= Q(budget_id=request.user.pk)
+        q &= Q(
+            date__range=(
+                request.query_params.get("start_date"),
+                request.query_params.get("end_date"),
+            )
+        )
         category_data = CategorySumSerializer(
-            Expenses.objects.filter(budget_id=request.user.pk)
+            Expenses.objects.filter(q)
             .values("category__title")
             .annotate(total_sum=Sum("price")),
             many=True,
         ).data
-
+        
         store_data = StoreSumSerializer(
-            Expenses.objects.filter(budget_id=request.user.pk)
+            Expenses.objects.filter(q)
             .values("store__title")
             .annotate(total_sum=Sum("price")),
             many=True,
         ).data
-        
+
         expenses_data = ExpensesSumSerializer(
-            Expenses.objects.filter(budget_id=request.user.pk)
+            Expenses.objects.filter(q)
             .values("title")
             .annotate(total_sum=Sum("price")),
             many=True,

@@ -29,7 +29,6 @@ DEBUG = False
 
 ALLOWED_HOSTS = [os.getenv('ALLOWED_HOST')]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,6 +58,7 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     os.getenv('CORS_ORIGIN'),
+    "http://localhost:8080"
 ]
 
 MIDDLEWARE = [
